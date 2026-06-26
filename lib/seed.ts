@@ -1,4 +1,4 @@
-import type { Challenge, Candidate } from '@/lib/types';
+import type { Challenge, Candidate, StoredUser } from '@/lib/types';
 
 // SCRUB: This repository is PUBLIC. Never put real challenge briefs, candidate
 // emails, or users here. The only seeded challenge is a clearly-fake placeholder.
@@ -8,7 +8,7 @@ import type { Challenge, Candidate } from '@/lib/types';
 export type SeedShape = {
   challenges: Challenge[];
   candidates: Candidate[];
-  users: { email: string; passwordHash: string }[];
+  users: StoredUser[];
 };
 
 export const seedChallenges: Challenge[] = [
@@ -26,7 +26,7 @@ export const seedChallenges: Challenge[] = [
 
 // Zero candidates, zero users — seeded empty on purpose (SCRUB).
 export const seedCandidates: Candidate[] = [];
-export const seedUsers: { email: string; passwordHash: string }[] = [];
+export const seedUsers: StoredUser[] = [];
 
 export function makeSeed(): SeedShape {
   return {

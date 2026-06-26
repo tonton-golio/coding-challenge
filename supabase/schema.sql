@@ -23,8 +23,19 @@ create table if not exists candidates (
 
 create table if not exists users (
   email         text primary key,
-  password_hash text not null
+  password_hash text not null,
+  -- Email verification: candidates must confirm their address before sign-in.
+  -- Admins are created already-verified (the ADMIN_SETUP_TOKEN is their proof).
+  verified      boolean not null default false,
+  verify_token  text
 );
+
+-- Look up users by their one-shot verification token.
+create index if not exists users_verify_token_idx on users (verify_token);
+
+-- Existing deployments: add the columns if the table predates email verification.
+alter table users add column if not exists verified     boolean not null default false;
+alter table users add column if not exists verify_token  text;
 
 -- Enable RLS on every table. With no policies defined, anon + authenticated
 -- clients are denied all access; the server's service-role key bypasses RLS.

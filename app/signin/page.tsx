@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 export default function SigninPage() {
   const router = useRouter();
@@ -11,6 +11,13 @@ export default function SigninPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  // A failed/expired verification link bounces back here with ?verify=failed.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('verify') === 'failed') {
+      setError('That verification link is invalid or expired. Sign in to get a new one.');
+    }
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -26,6 +33,15 @@ export default function SigninPage() {
 
       if (res.status === 401) {
         setError('Incorrect email or password.');
+        return;
+      }
+      if (res.status === 403) {
+        const data = await res.json().catch(() => null);
+        setError(
+          data && data.error === 'unverified'
+            ? 'Please verify your email first — we just re-sent the link.'
+            : 'Something went wrong. Try again.',
+        );
         return;
       }
       if (!res.ok) {

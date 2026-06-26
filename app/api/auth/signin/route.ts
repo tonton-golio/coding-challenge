@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { store } from '@/lib/store';
 import { isAdmin, verifyPassword } from '@/lib/auth';
 import { setSession } from '@/lib/session';
+import { appBaseUrl, sendVerificationEmail } from '@/lib/email';
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
@@ -23,6 +24,15 @@ export async function POST(req: Request) {
   const user = await store.getUser(email);
   if (!user || !verifyPassword(password, user.passwordHash)) {
     return NextResponse.json({ error: 'bad-credentials' }, { status: 401 });
+  }
+
+  // Email not yet confirmed: refuse the session and re-send the link best-effort.
+  if (!user.verified) {
+    if (user.verifyToken) {
+      const base = appBaseUrl() || new URL(req.url).origin;
+      await sendVerificationEmail(email, `${base}/api/auth/verify?token=${user.verifyToken}`);
+    }
+    return NextResponse.json({ error: 'unverified' }, { status: 403 });
   }
 
   await setSession(email);

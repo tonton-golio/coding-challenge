@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSessionUser } from '@/lib/session';
 import { store } from '@/lib/store';
+import { appBaseUrl, sendInviteEmail } from '@/lib/email';
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
@@ -28,5 +29,12 @@ export async function POST(req: Request) {
   }
 
   const candidate = await store.addCandidate(email, null);
-  return NextResponse.json({ candidate }, { status: 201 });
+
+  // Email the candidate an invite link (best-effort — the candidate row is
+  // created regardless of whether delivery succeeds).
+  const base = appBaseUrl() || new URL(req.url).origin;
+  const signupUrl = `${base}/signup?email=${encodeURIComponent(email)}`;
+  const result = await sendInviteEmail(email, signupUrl);
+
+  return NextResponse.json({ candidate, emailSent: result.sent }, { status: 201 });
 }

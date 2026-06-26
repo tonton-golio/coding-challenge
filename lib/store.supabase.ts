@@ -1,6 +1,6 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { randomUUID } from 'node:crypto';
-import type { Challenge, Candidate } from '@/lib/types';
+import type { Challenge, Candidate, StoredUser } from '@/lib/types';
 import type { Store } from '@/lib/store.contract';
 
 // Row shapes as stored in Supabase/Postgres.
@@ -19,6 +19,8 @@ type CandidateRow = {
 type UserRow = {
   email: string;
   password_hash: string;
+  verified: boolean | null;
+  verify_token: string | null;
 };
 
 let client: SupabaseClient | null = null;
@@ -190,7 +192,7 @@ export const supabaseStore: Store = {
     if (error) throw error;
   },
 
-  async getUser(email: string): Promise<{ email: string; passwordHash: string } | null> {
+  async getUser(email: string): Promise<StoredUser | null> {
     const { data, error } = await db()
       .from('users')
       .select('*')
@@ -199,16 +201,42 @@ export const supabaseStore: Store = {
     if (error) throw error;
     if (!data) return null;
     const row = data as UserRow;
-    return { email: row.email, passwordHash: row.password_hash };
+    return {
+      email: row.email,
+      passwordHash: row.password_hash,
+      verified: row.verified ?? false,
+      verifyToken: row.verify_token ?? null,
+    };
   },
 
-  async createUser(email: string, passwordHash: string): Promise<void> {
+  async createUser(
+    email: string,
+    passwordHash: string,
+    opts?: { verified?: boolean; verifyToken?: string | null },
+  ): Promise<void> {
     const { error } = await db()
       .from('users')
       .upsert(
-        { email: lc(email), password_hash: passwordHash },
+        {
+          email: lc(email),
+          password_hash: passwordHash,
+          verified: opts?.verified ?? false,
+          verify_token: opts?.verifyToken ?? null,
+        },
         { onConflict: 'email', ignoreDuplicates: false },
       );
     if (error) throw error;
+  },
+
+  async verifyUserByToken(token: string): Promise<string | null> {
+    if (!token) return null;
+    const { data, error } = await db()
+      .from('users')
+      .update({ verified: true, verify_token: null })
+      .eq('verify_token', token)
+      .select('email')
+      .maybeSingle();
+    if (error) throw error;
+    return data ? (data as UserRow).email : null;
   },
 };

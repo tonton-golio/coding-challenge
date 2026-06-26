@@ -1,14 +1,14 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
-import type { Challenge, Candidate } from '@/lib/types';
+import type { Challenge, Candidate, StoredUser } from '@/lib/types';
 import { makeSeed, type SeedShape } from '@/lib/seed';
 import type { Store } from '@/lib/store.contract';
 
 const DATA_DIR = path.join(process.cwd(), '.data');
 const DB_PATH = path.join(DATA_DIR, 'db.json');
 
-type DbUser = { email: string; passwordHash: string };
+type DbUser = StoredUser;
 type Db = {
   challenges: Challenge[];
   candidates: Candidate[];
@@ -54,7 +54,14 @@ async function load(): Promise<Db> {
         ? parsed.candidates.map((c) => ({ ...c, email: c.email.toLowerCase() }))
         : [],
       users: Array.isArray(parsed.users)
-        ? parsed.users.map((u) => ({ ...u, email: u.email.toLowerCase() }))
+        ? parsed.users.map((u) => ({
+            email: String(u.email).toLowerCase(),
+            passwordHash: u.passwordHash,
+            // Legacy rows (pre email-verification) are treated as verified so
+            // existing local accounts keep working.
+            verified: u.verified ?? true,
+            verifyToken: u.verifyToken ?? null,
+          }))
         : [],
     };
   } catch {
@@ -199,22 +206,41 @@ export const memoryStore: Store = {
     }
   },
 
-  async getUser(email: string): Promise<{ email: string; passwordHash: string } | null> {
+  async getUser(email: string): Promise<StoredUser | null> {
     const db = await load();
     const e = lc(email);
     const u = db.users.find((x) => x.email === e);
     return u ? { ...u } : null;
   },
 
-  async createUser(email: string, passwordHash: string): Promise<void> {
+  async createUser(
+    email: string,
+    passwordHash: string,
+    opts?: { verified?: boolean; verifyToken?: string | null },
+  ): Promise<void> {
     const db = await load();
     const e = lc(email);
+    const verified = opts?.verified ?? false;
+    const verifyToken = opts?.verifyToken ?? null;
     const existing = db.users.find((x) => x.email === e);
     if (existing) {
       existing.passwordHash = passwordHash;
+      existing.verified = verified;
+      existing.verifyToken = verifyToken;
     } else {
-      db.users.push({ email: e, passwordHash });
+      db.users.push({ email: e, passwordHash, verified, verifyToken });
     }
     await persist(db);
+  },
+
+  async verifyUserByToken(token: string): Promise<string | null> {
+    if (!token) return null;
+    const db = await load();
+    const u = db.users.find((x) => x.verifyToken === token);
+    if (!u) return null;
+    u.verified = true;
+    u.verifyToken = null;
+    await persist(db);
+    return u.email;
   },
 };

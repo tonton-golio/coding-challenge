@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 export default function SignupPage() {
   const router = useRouter();
@@ -14,6 +14,16 @@ export default function SignupPage() {
   // Admins paste the ADMIN_SETUP_TOKEN into a field (kept out of the URL/logs).
   const [setupToken, setSetupToken] = useState('');
   const [showAdmin, setShowAdmin] = useState(false);
+  // After signup a candidate must verify their email before they get a session.
+  const [pending, setPending] = useState(false);
+  const [devVerifyUrl, setDevVerifyUrl] = useState('');
+
+  // Invite links carry the candidate's email (?email=…) — prefill it. Read from
+  // the URL directly to avoid a useSearchParams Suspense boundary.
+  useEffect(() => {
+    const e = new URLSearchParams(window.location.search).get('email');
+    if (e) setEmail(e);
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -44,6 +54,13 @@ export default function SignupPage() {
       }
 
       const data = await res.json();
+      // Candidates: account created, now waiting on email verification.
+      if (data.pending) {
+        setDevVerifyUrl(typeof data.devVerifyUrl === 'string' ? data.devVerifyUrl : '');
+        setPending(true);
+        return;
+      }
+      // Admins are signed in immediately.
       if (data.isAdmin) router.push('/admin');
       else if (data.revealed) router.push('/challenge');
       else router.push('/dashboard');
@@ -77,6 +94,31 @@ export default function SignupPage() {
 
       <main className="stage">
         <section className="screen active" data-screen="signup">
+          {pending ? (
+            <>
+              <p className="eyebrow">Almost there</p>
+              <h2 className="title">Check your email</h2>
+              <p className="lede">
+                We sent a verification link to <b>{email}</b>. Click it to activate your account
+                and sign in &mdash; you can close this tab.
+              </p>
+              {devVerifyUrl ? (
+                <div className="card">
+                  <p className="section-label">Dev mode (no email provider configured)</p>
+                  <p className="note" style={{ marginTop: '10px' }}>
+                    <a className="btn primary" href={devVerifyUrl}>
+                      Verify now
+                    </a>
+                  </p>
+                </div>
+              ) : (
+                <p className="switch-line">
+                  Already verified? <Link href="/signin">Sign in</Link>
+                </p>
+              )}
+            </>
+          ) : (
+          <>
           <p className="eyebrow">Create account</p>
           <h2 className="title">Sign up with your invited email</h2>
           <p className="lede">
@@ -147,6 +189,8 @@ export default function SignupPage() {
               </p>
             </div>
           </form>
+          </>
+          )}
         </section>
       </main>
     </div>
