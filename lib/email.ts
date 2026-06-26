@@ -18,6 +18,12 @@ function fromAddress(): string {
   return process.env.EMAIL_FROM || 'Simply.tv Hiring <onboarding@resend.dev>';
 }
 
+function replyToAddress(): string {
+  // Optional Reply-To, e.g. the hiring manager's real inbox, so candidate
+  // replies don't bounce off the no-mailbox sending address.
+  return (process.env.EMAIL_REPLY_TO || '').trim();
+}
+
 /**
  * Public base URL used to build absolute links in emails. Prefers APP_URL, then
  * Vercel's production URL. Returns '' when neither is set (callers fall back to
@@ -42,13 +48,16 @@ async function send(to: string, subject: string, html: string, text: string): Pr
     return { sent: false };
   }
   try {
+    const payload: Record<string, unknown> = { from: fromAddress(), to, subject, html, text };
+    const replyTo = replyToAddress();
+    if (replyTo) payload.reply_to = replyTo;
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${key}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ from: fromAddress(), to, subject, html, text }),
+      body: JSON.stringify(payload),
     });
     if (!res.ok) {
       const detail = await res.text().catch(() => '');

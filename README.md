@@ -59,6 +59,8 @@ See `.env.example`:
 - `EMAIL_FROM` — from address, e.g. `Simply.tv Hiring <hiring@simply.tv>`. To
   email external candidates this must be on a domain verified in Resend; the
   default `onboarding@resend.dev` sender only delivers to your own address.
+- `EMAIL_REPLY_TO` — optional Reply-To (e.g. the hiring manager's real inbox) so
+  candidate replies reach a person instead of bouncing off the sending address.
 - `APP_URL` — public base URL used to build links in emails (e.g.
   `https://your-app.vercel.app`). Falls back to Vercel's production URL if unset.
 
