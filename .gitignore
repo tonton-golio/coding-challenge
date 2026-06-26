@@ -1,0 +1,23 @@
+# dependencies
+/node_modules
+
+# next.js
+/.next
+/out
+
+# environment (never commit secrets; only the example is tracked)
+.env*
+!.env.example
+
+# local dev data store (never commit candidate/challenge data)
+/.data
+/.private
+
+# logs
+*.log
+
+# os
+.DS_Store
+
+# next typegen
+next-env.d.ts
