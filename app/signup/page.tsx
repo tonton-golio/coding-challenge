@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 export default function SignupPage() {
   const router = useRouter();
@@ -11,11 +11,9 @@ export default function SignupPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  // Admins create their account via /signup?setup=<ADMIN_SETUP_TOKEN>.
+  // Admins paste the ADMIN_SETUP_TOKEN into a field (kept out of the URL/logs).
   const [setupToken, setSetupToken] = useState('');
-  useEffect(() => {
-    setSetupToken(new URLSearchParams(window.location.search).get('setup') || '');
-  }, []);
+  const [showAdmin, setShowAdmin] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -114,6 +112,31 @@ export default function SignupPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
               />
+            </div>
+            <div className="field">
+              {showAdmin ? (
+                <>
+                  <label htmlFor="su-setup">Admin setup token</label>
+                  <input
+                    id="su-setup"
+                    type="password"
+                    placeholder="paste ADMIN_SETUP_TOKEN"
+                    autoComplete="off"
+                    value={setupToken}
+                    onChange={(e) => setSetupToken(e.target.value)}
+                  />
+                  <span className="hint">Only needed to create an admin account.</span>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  className="btn muted"
+                  style={{ alignSelf: 'flex-start', padding: 0, border: 'none', fontSize: '.72rem' }}
+                  onClick={() => setShowAdmin(true)}
+                >
+                  Setting up an admin account?
+                </button>
+              )}
             </div>
             <div className="form-foot">
               <button className="btn primary block" type="submit" disabled={submitting}>
